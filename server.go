@@ -187,7 +187,8 @@ func loginSubmit(ctx context.Context, preq *pb.PageRequest) (presp *pb.PageRespo
 			}
 		}
 	}
-	if sessionID, ok := passwordValid(username, password); ok {
+	sessionID, ok := passwordValid(username, password)
+	if ok {
 		log.Println("username and password successful")
 		msg := fmt.Sprintf("Hi %s. You may now navigate to protected pages " +
 			"like /protected by hitting (p) or selecting 'protected' from the feedBrowser", username)
@@ -209,6 +210,12 @@ func loginSubmit(ctx context.Context, preq *pb.PageRequest) (presp *pb.PageRespo
 			Expires: (time.Now().Add(time.Duration(5*time.Hour))).Format(time.RFC1123),
 		})
 		return localPage, err
+	} else if sessionID == "user not found" && !ok {
+		msg := "Passord incorrect. Try again (l) or create a new user (n)"
+		localPage := pageGeneratorSimple(width, height, msg)
+		localPage = addLink(localPage, "n", "newUser")
+		localPage = addLink(localPage, "l", "login")
+		return localPage, err
 	} else {
 		msg := fmt.Sprintf("username '%s' not found. Create new user (n) or try again (l)", username)
 		localPage := pageGeneratorSimple(width, height, msg)
@@ -225,9 +232,13 @@ func protected(ctx context.Context, preq *pb.PageRequest) (presp *pb.PageRespons
 	sizeOfVar := reflect.TypeOf(&preq).Size()
 	log.Printf("protected: processing %d bytes of PageRequest", sizeOfVar)
 	var session string
+	var user string
 	for _, cookie := range preq.SendCookies{
 		if cookie.Key == "sessionid" {
 			session = cookie.Value
+		}
+		if cookie.Key == "username" {
+			user = cookie.Value
 		}
 	}
 	// even though the validateCtx function should protect this page we'll verify again
@@ -236,7 +247,7 @@ func protected(ctx context.Context, preq *pb.PageRequest) (presp *pb.PageRespons
 		log.Print("session valid, letting them in")
 		height := int(preq.ClientHeight)
 		width := int(preq.ClientWidth)
-		msg := fmt.Sprintf("This is the super secret page. Press (o) to logout.")
+		msg := fmt.Sprintf("Hi '%s'. This is the super secret page. Press (o) to logout.", user)
 		localPage := pageGeneratorSimple(width, height, msg)
 		localPage = addLink(localPage, "o", "logout")
 		return localPage, err
@@ -330,6 +341,7 @@ func newUser(ctx context.Context, preq *pb.PageRequest) (presp *pb.PageResponse,
 				StyleText: shelp("white", "blue"),
 				StyleDescription: shelp("red", "black"),
 				ShowDescription: true,
+				Password: true,
 			},
 			&pb.TextBox{
 				Name: "password2",
@@ -345,6 +357,7 @@ func newUser(ctx context.Context, preq *pb.PageRequest) (presp *pb.PageResponse,
 				StyleText: shelp("white", "blue"),
 				StyleDescription: shelp("red", "black"),
 				ShowDescription: true,
+				Password: true,
 			},
 			&pb.TextBox{
 				Name: "username",
@@ -429,6 +442,7 @@ func login(ctx context.Context, preq *pb.PageRequest) (presp *pb.PageResponse, e
 				StyleText: shelp("white", "blue"),
 				StyleDescription: shelp("red", "black"),
 				ShowDescription: true,
+				Password: true,
 			},
 			&pb.TextBox{
 				Name: "username",
