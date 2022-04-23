@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"fmt"
 	pb "github.com/rendicott/uggly"
+	"github.com/rendicott/uggo"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
@@ -57,48 +58,6 @@ func randStringRunes(n int) string {
 	return string(b)
 }
 
-func pageGeneratorSimple(w, h int, text string) (*pb.PageResponse) {
-	localPage := pb.PageResponse{
-		Name: "generated",
-		DivBoxes: &pb.DivBoxes{},
-		Elements: &pb.Elements{},
-	}
-	localPage.DivBoxes.Boxes = append(localPage.DivBoxes.Boxes, &pb.DivBox{
-		Name:     "generated",
-		Border:   true,
-		BorderW:  int32(1),
-		BorderChar: convertStringCharRune("^"),
-		FillChar: convertStringCharRune(""),
-		StartX:   5,
-		StartY:   5,
-		Width:    int32(w-10),
-		Height:   int32(h-15),
-		BorderSt: shelp("orange", "black"),
-		FillSt: shelp("white","black"),
-	})
-	localPage.Elements.TextBlobs = append(localPage.Elements.TextBlobs, &pb.TextBlob{
-		Content: text,
-		Wrap:    true,
-		Style: &pb.Style{
-			Fg:   "white",
-			Bg:   "black",
-			Attr: "4",
-		},
-		DivNames: []string{"generated"},
-	})
-	return &localPage
-}
-
-func addLink(presp *pb.PageResponse, keyStroke, pageName string) (*pb.PageResponse) {
-	presp.KeyStrokes = append(presp.KeyStrokes, &pb.KeyStroke{
-		KeyStroke: keyStroke,
-		Action: &pb.KeyStroke_Link{
-			Link: &pb.Link{
-				PageName: pageName,
-	}}})
-	return presp
-}
-
 func logout(ctx context.Context, preq *pb.PageRequest) (presp *pb.PageResponse, err error) {
 	var session string
 	for _, cookie := range preq.SendCookies{
@@ -115,8 +74,8 @@ func logout(ctx context.Context, preq *pb.PageRequest) (presp *pb.PageResponse, 
 	height := int(preq.ClientHeight)
 	width := int(preq.ClientWidth)
 	msg := fmt.Sprintf("%s, you are now logged out. Log back in with (l)", username)
-	localPage := pageGeneratorSimple(width, height, msg)
-	localPage = addLink(localPage, "l", "login")
+	localPage := uggo.GenPageSimple(width, height, msg)
+	localPage = uggo.AddLink(localPage, "l", "login", false)
 	// cleaning up client side
 	log.Println("blanking sessionid cookie")
 	localPage.SetCookies = append(localPage.SetCookies, &pb.Cookie{
@@ -151,20 +110,20 @@ func newUserSubmit(ctx context.Context, preq *pb.PageRequest) (presp *pb.PageRes
 	}
 	if _, ok := users[username]; ok {
 		msg := fmt.Sprintf("username '%s' already exists. Try again (n).", username)
-		localPage := pageGeneratorSimple(width, height, msg)
-		localPage = addLink(localPage, "n", "newUser")
+		localPage := uggo.GenPageSimple(width, height, msg)
+		localPage = uggo.AddLink(localPage, "n", "newUser", false)
 		return localPage, err
 	} else if password1 == password2 {
 		hashPass, err := hashPassword(password1)
 		users[username] = hashPass
-		msg := fmt.Sprintf("Hi %s. Thanks for creating a user. Now user your new login (l)", username) 
-		localPage := pageGeneratorSimple(width, height, msg)
-		localPage = addLink(localPage, "l", "login")
+		msg := fmt.Sprintf("Hi %s. Thanks for creating a user. Now user your new login (l)", username)
+		localPage := uggo.GenPageSimple(width, height, msg)
+		localPage = uggo.AddLink(localPage, "l", "login", false)
 		return localPage, err
 	} else if password1 != password2 {
 		msg := "passwords did not match. Try again (n)"
-		localPage := pageGeneratorSimple(width, height, msg)
-		localPage = addLink(localPage, "n", "newUser")
+		localPage := uggo.GenPageSimple(width, height, msg)
+		localPage = uggo.AddLink(localPage, "n", "newUser", false)
 		return localPage, err
 	}
 	return login(ctx, preq)
@@ -192,8 +151,8 @@ func loginSubmit(ctx context.Context, preq *pb.PageRequest) (presp *pb.PageRespo
 		log.Println("username and password successful")
 		msg := fmt.Sprintf("Hi %s. You may now navigate to protected pages " +
 			"like /protected by hitting (p) or selecting 'protected' from the feedBrowser", username)
-		localPage := pageGeneratorSimple(width, height, msg)
-		localPage = addLink(localPage, "p", "protected")
+		localPage := uggo.GenPageSimple(width, height, msg)
+		localPage = uggo.AddLink(localPage, "p", "protected", false)
 		localPage.SetCookies = append(localPage.SetCookies, &pb.Cookie{
 			Key: "username",
 			Value: username,
@@ -212,15 +171,15 @@ func loginSubmit(ctx context.Context, preq *pb.PageRequest) (presp *pb.PageRespo
 		return localPage, err
 	} else if sessionID == "user not found" && !ok {
 		msg := "Passord incorrect. Try again (l) or create a new user (n)"
-		localPage := pageGeneratorSimple(width, height, msg)
-		localPage = addLink(localPage, "n", "newUser")
-		localPage = addLink(localPage, "l", "login")
+		localPage := uggo.GenPageSimple(width, height, msg)
+		localPage = uggo.AddLink(localPage, "n", "newUser", false)
+		localPage = uggo.AddLink(localPage, "l", "login", false)
 		return localPage, err
 	} else {
 		msg := fmt.Sprintf("username '%s' not found. Create new user (n) or try again (l)", username)
-		localPage := pageGeneratorSimple(width, height, msg)
-		localPage = addLink(localPage, "n", "newUser")
-		localPage = addLink(localPage, "l", "login")
+		localPage := uggo.GenPageSimple(width, height, msg)
+		localPage = uggo.AddLink(localPage, "n", "newUser", false)
+		localPage = uggo.AddLink(localPage, "l", "login", false)
 		return localPage, err
 	}
 	return login(ctx, preq)
@@ -247,9 +206,10 @@ func protected(ctx context.Context, preq *pb.PageRequest) (presp *pb.PageRespons
 		log.Print("session valid, letting them in")
 		height := int(preq.ClientHeight)
 		width := int(preq.ClientWidth)
-		msg := fmt.Sprintf("Hi '%s'. This is the super secret page. Press (o) to logout.", user)
-		localPage := pageGeneratorSimple(width, height, msg)
-		localPage = addLink(localPage, "o", "logout")
+		msg := fmt.Sprintf("Hi '%s'. This is the super secret page. Press (o) to logout or (s) to see the surprise.", user)
+		localPage := uggo.GenPageSimple(width, height, msg)
+		localPage = uggo.AddLink(localPage, "o", "logout", false)
+		localPage = uggo.AddLink(localPage, "s", "s", true)
 		return localPage, err
 	}
 	log.Printf("unable to validate session '%s', returning user to login", session)
@@ -274,6 +234,19 @@ func passwordValid(username, password string) (string, bool) {
 	return "user not found", false
 }
 
+func validatePreq(preq *pb.PageRequest) (bool) {
+	log.Print("validating preq")
+	var session string
+	for _, cookie := range preq.SendCookies{
+		if cookie.Key == "sessionid" {
+			session = cookie.Value
+		}
+	}
+	log.Printf("got session id '%s'", session)
+	// even though the validateCtx function should protect this page we'll verify again
+	// just to be safe
+	return sessionValid(session)
+}
 
 func validateCtx(ctx context.Context) (bool) {
 	md, ok := metadata.FromIncomingContext(ctx)
@@ -298,101 +271,12 @@ func validateCtx(ctx context.Context) (bool) {
 func newUser(ctx context.Context, preq *pb.PageRequest) (presp *pb.PageResponse, err error) {
 	height := int(preq.ClientHeight)
 	width := int(preq.ClientWidth)
-	localPage := pb.PageResponse{
-		Name: "form",
-		DivBoxes: &pb.DivBoxes{},
-		Elements: &pb.Elements{},
-	}
+	instructionsMessage := "Create a new user."
+	localPage := uggo.GenPageSimple(width, height, instructionsMessage)
 	formActivationKeystroke := "j"
-	instructionsMessage := fmt.Sprintf("Create a new user. Hit (%s) to activate form.", formActivationKeystroke)
-	localPage.DivBoxes.Boxes = append(localPage.DivBoxes.Boxes, &pb.DivBox{
-		Name:     "formDiv",
-		Border:   true,
-		BorderW:  int32(1),
-		BorderChar: convertStringCharRune("^"),
-		FillChar: convertStringCharRune(""),
-		StartX:   5,
-		StartY:   5,
-		Width:    int32(width-10),
-		Height:   int32(height-15),
-		BorderSt: shelp("orange", "black"),
-		FillSt: shelp("white","black"),
-	})
-	loginFormName := "newUserForm"
-	positionX := 30
-	localPage.Elements.Forms = append(localPage.Elements.Forms, &pb.Form{
-		Name: loginFormName,
-		DivName: "formDiv",
-		SubmitLink: &pb.Link{
-			PageName: "newUserSubmit",
-		},
-		TextBoxes: []*pb.TextBox{
-			&pb.TextBox{
-				Name: "password1",
-				TabOrder: 2,
-				DefaultValue: "",
-				Description: "Password: ",
-				PositionX: int32(positionX),
-				PositionY: 12,
-				Height: 1,
-				Width: 30,
-				StyleCursor: shelp("black", "gray"),
-				StyleFill: shelp("black", "blue"),
-				StyleText: shelp("white", "blue"),
-				StyleDescription: shelp("red", "black"),
-				ShowDescription: true,
-				Password: true,
-			},
-			&pb.TextBox{
-				Name: "password2",
-				TabOrder: 3,
-				DefaultValue: "",
-				Description: "Re-Type Password: ",
-				PositionX: int32(positionX),
-				PositionY: 14,
-				Height: 1,
-				Width: 30,
-				StyleCursor: shelp("black", "gray"),
-				StyleFill: shelp("black", "blue"),
-				StyleText: shelp("white", "blue"),
-				StyleDescription: shelp("red", "black"),
-				ShowDescription: true,
-				Password: true,
-			},
-			&pb.TextBox{
-				Name: "username",
-				TabOrder: 1,
-				DefaultValue: "",
-				Description: "Username: ",
-				PositionX: int32(positionX),
-				PositionY: 10,
-				Height: 1,
-				Width: 30,
-				StyleCursor: shelp("black", "gray"),
-				StyleFill: shelp("black", "blue"),
-				StyleText: shelp("white", "blue"),
-				StyleDescription: shelp("red", "black"),
-				ShowDescription: true,
-			},
-		},
-	})
-	localPage.KeyStrokes = append(localPage.KeyStrokes, &pb.KeyStroke{
-		KeyStroke: formActivationKeystroke,
-		Action: &pb.KeyStroke_FormActivation{
-			FormActivation: &pb.FormActivation{
-				FormName: loginFormName,
-	}}})
-	localPage.Elements.TextBlobs = append(localPage.Elements.TextBlobs, &pb.TextBlob{
-		Content: instructionsMessage,
-		Wrap:    true,
-		Style: &pb.Style{
-			Fg:   "white",
-			Bg:   "black",
-			Attr: "4",
-		},
-		DivNames: []string{"formDiv"},
-	})
-	return &localPage, err
+	submitPage := "newUserSubmit"
+	localPage = uggo.AddFormNewUser(localPage, formActivationKeystroke, submitPage)
+	return localPage, err
 }
 
 
@@ -400,84 +284,12 @@ func newUser(ctx context.Context, preq *pb.PageRequest) (presp *pb.PageResponse,
 func login(ctx context.Context, preq *pb.PageRequest) (presp *pb.PageResponse, err error) {
 	height := int(preq.ClientHeight)
 	width := int(preq.ClientWidth)
-	localPage := pb.PageResponse{
-		Name: "form",
-		DivBoxes: &pb.DivBoxes{},
-		Elements: &pb.Elements{},
-	}
 	formActivationKeystroke := "j"
-	welcomeMessage := fmt.Sprintf("Please login. Hit (%s) to activate form.", formActivationKeystroke)
-	localPage.DivBoxes.Boxes = append(localPage.DivBoxes.Boxes, &pb.DivBox{
-		Name:     "formDiv",
-		Border:   true,
-		BorderW:  int32(1),
-		BorderChar: convertStringCharRune("^"),
-		FillChar: convertStringCharRune(""),
-		StartX:   5,
-		StartY:   5,
-		Width:    int32(width-10),
-		Height:   int32(height-15),
-		BorderSt: shelp("orange", "black"),
-		FillSt: shelp("white","black"),
-	})
-	loginFormName := "loginForm"
-	localPage.Elements.Forms = append(localPage.Elements.Forms, &pb.Form{
-		Name: loginFormName,
-		DivName: "formDiv",
-		SubmitLink: &pb.Link{
-			PageName: "loginSubmit",
-		},
-		TextBoxes: []*pb.TextBox{
-			&pb.TextBox{
-				Name: "password",
-				TabOrder: 2,
-				DefaultValue: "",
-				Description: "Password: ",
-				PositionX: 25,
-				PositionY: 12,
-				Height: 1,
-				Width: 30,
-				StyleCursor: shelp("black", "gray"),
-				StyleFill: shelp("black", "blue"),
-				StyleText: shelp("white", "blue"),
-				StyleDescription: shelp("red", "black"),
-				ShowDescription: true,
-				Password: true,
-			},
-			&pb.TextBox{
-				Name: "username",
-				TabOrder: 1,
-				DefaultValue: "",
-				Description: "Username: ",
-				PositionX: 25,
-				PositionY: 10,
-				Height: 1,
-				Width: 30,
-				StyleCursor: shelp("black", "gray"),
-				StyleFill: shelp("black", "blue"),
-				StyleText: shelp("white", "blue"),
-				StyleDescription: shelp("red", "black"),
-				ShowDescription: true,
-			},
-		},
-	})
-	localPage.KeyStrokes = append(localPage.KeyStrokes, &pb.KeyStroke{
-		KeyStroke: formActivationKeystroke,
-		Action: &pb.KeyStroke_FormActivation{
-			FormActivation: &pb.FormActivation{
-				FormName: loginFormName,
-	}}})
-	localPage.Elements.TextBlobs = append(localPage.Elements.TextBlobs, &pb.TextBlob{
-		Content: welcomeMessage,
-		Wrap:    true,
-		Style: &pb.Style{
-			Fg:   "white",
-			Bg:   "black",
-			Attr: "4",
-		},
-		DivNames: []string{"formDiv"},
-	})
-	return &localPage, err
+	welcomeMessage := "Please login."
+	localPage := uggo.GenPageSimple(width, height, welcomeMessage)
+	submitPage := "loginSubmit"
+	localPage = uggo.AddFormLogin(localPage, formActivationKeystroke, submitPage)
+	return localPage, err
 }
 
 /* GetPage implements the Page Service's GetPage method as required in the protobuf definition.
@@ -514,6 +326,67 @@ func (s pageServer) GetPage(ctx context.Context, preq *pb.PageRequest) (presp *p
 		}
 	}
 	return login(ctx, preq)
+}
+
+func demoStream(preq *pb.PageRequest, stream pb.Page_GetPageStreamServer) error {
+	var err error
+	log.Print("valid request")
+	for i:=0; i<=20; i++ {
+		if i == 20 {
+			if err := stream.Send(
+				uggo.AddTextBoxToPage(
+					uggo.GenPageLittleBox(2+i, 2+i), "all done")); err != nil {
+				return err
+			}
+		} else {
+			if err := stream.Send(
+					uggo.GenPageLittleBox(2+i, 2+i)); err != nil {
+				return err
+			}
+		}
+	}
+	return err
+}
+
+func newStream(preq *pb.PageRequest, stream pb.Page_GetPageStreamServer) error {
+	var err error
+	page := uggo.GenPageLittleBox(2, 2)
+	for i:=0; i<=20; i++ {
+		page = uggo.MoveBox(page, "generated", 1, 1)
+		page = uggo.GrowBox(page, "generated", 6, 1)
+		time.Sleep(50*time.Millisecond) // simulate slow connection
+		if err := stream.Send(page); err != nil {
+			return err
+		}
+	}
+	return err
+}
+
+func (s pageServer) GetPageStream(preq *pb.PageRequest, stream pb.Page_GetPageStreamServer) error {
+	log.Print("routing stream")
+	if preq.Name == "s" {
+		log.Print("validating request")
+		if validatePreq(preq) {
+			return demoStream(preq, stream)
+		} else {
+			ctx := context.Background()
+			loginPage, err := login(ctx, preq)
+			if err != nil {
+				return err
+			}
+			if err := stream.Send(loginPage); err != nil {
+				return err
+			}
+		}
+	} else if preq.Name == "t" {
+		return newStream(preq, stream)
+	}
+	//for i:=30; i>=0; i-- {
+	//	if err := stream.Send(genPageResponseLittleBox(2+i, 2+i)); err != nil {
+	//		return err
+	//	}
+	//}
+	return nil
 }
 
 /* newPageServer takes the loaded pageconfig YAML and converts it to the structs
@@ -601,7 +474,7 @@ func main() {
 	} else {
 		log.Println("No TLS options specified, running insecure")
 	}
-	lis, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", *port))
+	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", *port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
