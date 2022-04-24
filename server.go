@@ -478,6 +478,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
+	uggo.ThemeDefault = uggo.ThemeGreen
 	users = make(map[string]string, 0)
 	sessions = make(map[string]string, 0)
 	hashPass, err := hashPassword("pass")

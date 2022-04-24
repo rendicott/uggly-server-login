@@ -1,16 +1,16 @@
 module github.com/rendicott/uggly-server-login
 
-replace github.com/rendicott/uggly => ../uggly
-
 replace github.com/rendicott/uggo => ../uggo
 
-go 1.17
+replace github.com/rendicott/uggly => ../uggly
+
+go 1.18
 
 require (
-	github.com/rendicott/uggly v0.1.0
-	github.com/rendicott/uggo v0.0.0-00010101000000-000000000000
-	golang.org/x/crypto v0.0.0-20220331220935-ae2d96664a29
-	google.golang.org/grpc v1.45.0
+	github.com/rendicott/uggly v0.1.2
+	github.com/rendicott/uggo v0.0.2
+	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4
+	google.golang.org/grpc v1.46.0
 )
 
 require (
