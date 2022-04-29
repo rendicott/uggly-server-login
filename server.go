@@ -170,7 +170,7 @@ func loginSubmit(ctx context.Context, preq *pb.PageRequest) (presp *pb.PageRespo
 		})
 		return localPage, err
 	} else if sessionID == "user not found" && !ok {
-		msg := "Passord incorrect. Try again (l) or create a new user (n)"
+		msg := "Paswsord incorrect. Try again (l) or create a new user (n)"
 		localPage := uggo.GenPageSimple(width, height, msg)
 		localPage = uggo.AddLink(localPage, "n", "newUser", false)
 		localPage = uggo.AddLink(localPage, "l", "login", false)
