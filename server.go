@@ -3,31 +3,31 @@ package main
 import (
 	"context"
 	"flag"
-	"reflect"
 	"fmt"
 	pb "github.com/rendicott/uggly"
 	"github.com/rendicott/uggo"
+	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
-	"golang.org/x/crypto/bcrypt"
-	"math/rand"
 	"log"
+	"math/rand"
 	"net"
+	"reflect"
 	"time"
 )
 
 var (
-	tls        = flag.Bool("tls", false, "Connection uses TLS if true, else plain TCP")
-	certFile   = flag.String("cert_file", "", "The TLS cert file")
-	keyFile    = flag.String("key_file", "", "The TLS key file")
-	port       = flag.Int("port", 10000, "The server port")
+	tls      = flag.Bool("tls", false, "Connection uses TLS if true, else plain TCP")
+	certFile = flag.String("cert_file", "", "The TLS cert file")
+	keyFile  = flag.String("key_file", "", "The TLS key file")
+	port     = flag.Int("port", 10000, "The server port")
 )
 
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ123456789")
-var strokeMap = []string{"1","2","3","4","5","6","7","8","9",
-	"a","b","c","d","e","f","g","h","i","j","k","l","m",
-	"n","o","p","q","r","s","t","u","v","w","x","y","z"}
+var strokeMap = []string{"1", "2", "3", "4", "5", "6", "7", "8", "9",
+	"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m",
+	"n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"}
 
 func shelp(fg, bg string) *pb.Style {
 	return &pb.Style{
@@ -41,13 +41,13 @@ var users map[string]string
 var sessions map[string]string
 
 func hashPassword(password string) (string, error) {
-    bytes, err := bcrypt.GenerateFromPassword([]byte(password), 10)
-    return string(bytes), err
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 10)
+	return string(bytes), err
 }
 
 func checkPasswordHash(password, hash string) bool {
-    err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
-    return err == nil
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err == nil
 }
 
 func randStringRunes(n int) string {
@@ -60,7 +60,7 @@ func randStringRunes(n int) string {
 
 func logout(ctx context.Context, preq *pb.PageRequest) (presp *pb.PageResponse, err error) {
 	var session string
-	for _, cookie := range preq.SendCookies{
+	for _, cookie := range preq.SendCookies {
 		if cookie.Key == "sessionid" {
 			session = cookie.Value
 		}
@@ -79,13 +79,11 @@ func logout(ctx context.Context, preq *pb.PageRequest) (presp *pb.PageResponse, 
 	// cleaning up client side
 	log.Println("blanking sessionid cookie")
 	localPage.SetCookies = append(localPage.SetCookies, &pb.Cookie{
-		Key: "sessionid",
+		Key:   "sessionid",
 		Value: "",
 	})
 	return localPage, err
 }
-
-
 
 func newUserSubmit(ctx context.Context, preq *pb.PageRequest) (presp *pb.PageResponse, err error) {
 	sizeOfVar := reflect.TypeOf(&preq).Size()
@@ -149,24 +147,24 @@ func loginSubmit(ctx context.Context, preq *pb.PageRequest) (presp *pb.PageRespo
 	sessionID, ok := passwordValid(username, password)
 	if ok {
 		log.Println("username and password successful")
-		msg := fmt.Sprintf("Hi %s. You may now navigate to protected pages " +
+		msg := fmt.Sprintf("Hi %s. You may now navigate to protected pages "+
 			"like /protected by hitting (p) or selecting 'protected' from the feedBrowser", username)
 		localPage := uggo.GenPageSimple(width, height, msg)
 		localPage = uggo.AddLink(localPage, "p", "protected", false)
 		localPage.SetCookies = append(localPage.SetCookies, &pb.Cookie{
-			Key: "username",
-			Value: username,
+			Key:      "username",
+			Value:    username,
 			Metadata: true, // make sure it gets sent with metadata so validator doesn't throw it out
-			Secure: true,
-			Expires: (time.Now().Add(time.Duration(5*time.Hour))).Format(time.RFC1123),
+			Secure:   true,
+			Expires:  (time.Now().Add(time.Duration(5 * time.Hour))).Format(time.RFC1123),
 		})
 		log.Println("setting sessionid cookie")
 		localPage.SetCookies = append(localPage.SetCookies, &pb.Cookie{
-			Key: "sessionid",
-			Value: sessionID,
+			Key:      "sessionid",
+			Value:    sessionID,
 			Metadata: true, // make sure it gets sent with metadata so validator doesn't throw it out
-			Secure: true,
-			Expires: (time.Now().Add(time.Duration(5*time.Hour))).Format(time.RFC1123),
+			Secure:   true,
+			Expires:  (time.Now().Add(time.Duration(5 * time.Hour))).Format(time.RFC1123),
 		})
 		return localPage, err
 	} else if sessionID == "user not found" && !ok {
@@ -185,14 +183,12 @@ func loginSubmit(ctx context.Context, preq *pb.PageRequest) (presp *pb.PageRespo
 	return login(ctx, preq)
 }
 
-
-
 func protected(ctx context.Context, preq *pb.PageRequest) (presp *pb.PageResponse, err error) {
 	sizeOfVar := reflect.TypeOf(&preq).Size()
 	log.Printf("protected: processing %d bytes of PageRequest", sizeOfVar)
 	var session string
 	var user string
-	for _, cookie := range preq.SendCookies{
+	for _, cookie := range preq.SendCookies {
 		if cookie.Key == "sessionid" {
 			session = cookie.Value
 		}
@@ -216,7 +212,7 @@ func protected(ctx context.Context, preq *pb.PageRequest) (presp *pb.PageRespons
 	return login(ctx, preq)
 }
 
-func sessionValid(session string) (bool) {
+func sessionValid(session string) bool {
 	if _, ok := sessions[session]; ok {
 		return true
 	}
@@ -234,10 +230,10 @@ func passwordValid(username, password string) (string, bool) {
 	return "user not found", false
 }
 
-func validatePreq(preq *pb.PageRequest) (bool) {
+func validatePreq(preq *pb.PageRequest) bool {
 	log.Print("validating preq")
 	var session string
-	for _, cookie := range preq.SendCookies{
+	for _, cookie := range preq.SendCookies {
 		if cookie.Key == "sessionid" {
 			session = cookie.Value
 		}
@@ -248,7 +244,7 @@ func validatePreq(preq *pb.PageRequest) (bool) {
 	return sessionValid(session)
 }
 
-func validateCtx(ctx context.Context) (bool) {
+func validateCtx(ctx context.Context) bool {
 	md, ok := metadata.FromIncomingContext(ctx)
 	sizeOfVar := reflect.TypeOf(&md).Size()
 	log.Printf("processed %d bytes to make validation decision", sizeOfVar)
@@ -279,8 +275,6 @@ func newUser(ctx context.Context, preq *pb.PageRequest) (presp *pb.PageResponse,
 	return localPage, err
 }
 
-
-
 func login(ctx context.Context, preq *pb.PageRequest) (presp *pb.PageResponse, err error) {
 	height := int(preq.ClientHeight)
 	width := int(preq.ClientWidth)
@@ -295,7 +289,7 @@ func login(ctx context.Context, preq *pb.PageRequest) (presp *pb.PageResponse, e
 /* GetPage implements the Page Service's GetPage method as required in the protobuf definition.
 
 It is the primary listening method for the server. It accepts a PageRequest and then attempts to build
-a PageResponse which the client will process and display on the client's pcreen. 
+a PageResponse which the client will process and display on the client's pcreen.
 */
 func (s pageServer) GetPage(ctx context.Context, preq *pb.PageRequest) (presp *pb.PageResponse, err error) {
 	md, ok := metadata.FromIncomingContext(ctx)
@@ -331,7 +325,7 @@ func (s pageServer) GetPage(ctx context.Context, preq *pb.PageRequest) (presp *p
 func demoStream(preq *pb.PageRequest, stream pb.Page_GetPageStreamServer) error {
 	var err error
 	log.Print("valid request")
-	for i:=0; i<=20; i++ {
+	for i := 0; i <= 20; i++ {
 		if i == 20 {
 			if err := stream.Send(
 				uggo.AddTextBoxToPage(
@@ -340,7 +334,7 @@ func demoStream(preq *pb.PageRequest, stream pb.Page_GetPageStreamServer) error 
 			}
 		} else {
 			if err := stream.Send(
-					uggo.GenPageLittleBox(2+i, 2+i)); err != nil {
+				uggo.GenPageLittleBox(2+i, 2+i)); err != nil {
 				return err
 			}
 		}
@@ -351,10 +345,10 @@ func demoStream(preq *pb.PageRequest, stream pb.Page_GetPageStreamServer) error 
 func newStream(preq *pb.PageRequest, stream pb.Page_GetPageStreamServer) error {
 	var err error
 	page := uggo.GenPageLittleBox(2, 2)
-	for i:=0; i<=20; i++ {
+	for i := 0; i <= 20; i++ {
 		page = uggo.MoveBox(page, "generated", 1, 1)
 		page = uggo.GrowBox(page, "generated", 6, 1)
-		time.Sleep(50*time.Millisecond) // simulate slow connection
+		time.Sleep(50 * time.Millisecond) // simulate slow connection
 		if err := stream.Send(page); err != nil {
 			return err
 		}
@@ -396,7 +390,6 @@ func newPageServer() *pageServer {
 	pServer := &pageServer{}
 	return pServer
 }
-
 
 /* pageServer is a struct from which to attach the required methods for the Page Service
 as defined in the protobuf definition
@@ -451,14 +444,13 @@ func newFeedServer() *feedServer {
 /* GetFeed implements the Feed Service's GetFeed method as required in the protobuf definition.
 
 It is the primary listening method for the server. It accepts a FeedRequest and then attempts to build
-a FeedResponse which the client will process. 
+a FeedResponse which the client will process.
 */
 func (f feedServer) GetFeed(ctx context.Context, freq *pb.FeedRequest) (fresp *pb.FeedResponse, err error) {
 	fresp = &pb.FeedResponse{}
 	fresp.Pages = f.pages
 	return fresp, err
 }
-
 
 func main() {
 	flag.Parse()
