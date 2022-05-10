@@ -7,6 +7,6 @@ phases:
   post_build:
     commands:
       - docker build . -t uggly
-      - $(aws ecr get-login --no-include-email --region $AWS_DEFAULT_REGION)
+      - aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin 514723210267.dkr.ecr.us-east-2.amazonaws.com
       - docker tag uggly:latest 514723210267.dkr.ecr.us-east-2.amazonaws.com/uggly:latest
       - docker push 514723210267.dkr.ecr.us-east-2.amazonaws.com/uggly:latest
