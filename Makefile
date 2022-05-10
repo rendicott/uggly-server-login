@@ -9,11 +9,16 @@ build_dir_linux := output-linux
 build_dir_mac := output-mac
 build_dir_windows := output-windows
 
-build: format build-linux build-mac build-windows
+build: format configure build-linux build-mac build-windows
 
 format:
 	go fmt ./...
 
+configure:
+		mkdir -p $(build_dir)
+		mkdir -p $(build_dir_linux)
+		mkdir -p $(build_dir_mac)
+		mkdir -p $(build_dir_windows)
 
 build-linux:
 		env GOOS=linux GOARCH=amd64 go build -o ./$(build_dir_linux)/$(projectName) -ldflags "-X main.version=$(version)"
