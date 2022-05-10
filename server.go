@@ -279,10 +279,11 @@ func login(ctx context.Context, preq *pb.PageRequest) (presp *pb.PageResponse, e
 	height := int(preq.ClientHeight)
 	width := int(preq.ClientWidth)
 	formActivationKeystroke := "j"
-	welcomeMessage := "Please login."
+	welcomeMessage := "Please login or (n) for new user."
 	localPage := uggo.GenPageSimple(width, height, welcomeMessage)
 	submitPage := "loginSubmit"
 	localPage = uggo.AddFormLogin(localPage, formActivationKeystroke, submitPage)
+	localPage = uggo.AddLink(localPage, "n", "newUser", false)
 	return localPage, err
 }
 
@@ -329,7 +330,7 @@ func demoStream(preq *pb.PageRequest, stream pb.Page_GetPageStreamServer) error 
 		if i == 20 {
 			if err := stream.Send(
 				uggo.AddTextBoxToPage(
-					uggo.GenPageLittleBox(2+i, 2+i), "all done")); err != nil {
+					uggo.GenPageLittleBox(2+i, 2+i), "all done, (F4) to browse feed")); err != nil {
 				return err
 			}
 		} else {
@@ -452,6 +453,21 @@ func (f feedServer) GetFeed(ctx context.Context, freq *pb.FeedRequest) (fresp *p
 	return fresp, err
 }
 
+func genTheme() *uggo.Theme {
+	return &uggo.Theme{
+		StyleTextBoxDescription: uggo.Style("yellowgreen", "darkgreen"),
+		StyleTextBoxCursor:      uggo.Style("aquamarine", "darkseagreen"),
+		StyleTextBoxText:        uggo.Style("black", "green"),
+		StyleTextBoxFill:        uggo.Style("black", "green"),
+		StyleDivFill:            uggo.Style("darkkhaki", "black"),
+		StyleDivBorder:          uggo.Style("yellowgreen", "darkgreen"),
+		StyleTextBlob:           uggo.Style("yellowgreen", "black"),
+		DivBorderWidth:          int32(1),
+		DivBorderChar:           uggo.ConvertStringCharRune("="),
+		DivFillChar:             uggo.ConvertStringCharRune("."),
+	}
+}
+
 func main() {
 	flag.Parse()
 	//lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", *port))
@@ -470,7 +486,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
-	uggo.ThemeDefault = uggo.ThemeGreen
+	uggo.ThemeDefault = genTheme()
 	users = make(map[string]string, 0)
 	sessions = make(map[string]string, 0)
 	hashPass, err := hashPassword("pass")
