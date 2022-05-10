@@ -9,7 +9,9 @@ build_dir_linux := output-linux
 build_dir_mac := output-mac
 build_dir_windows := output-windows
 
-build: format configure build-linux build-mac build-windows
+build-all: build build-mac build-windows
+
+build: format configure build-linux
 
 format:
 	go fmt ./...
